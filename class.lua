@@ -1,8 +1,8 @@
-local class = {}
-
 local function self_meta(t)
     return setmetatable(t, t)
 end
+
+local class = self_meta {}
 
 class.object = self_meta {}
 
@@ -42,12 +42,13 @@ local function class_create()
         instance.__gc = class_destroy_instance
         instance.__class = self
 
-        instance = self_meta(instance)
+        self_meta(instance)
 
-        return class_init_instance(self, instance)
+        return class_init_instance(self, instance, ...)
     end
 
     function cls:__index(member)
+        -- TODO: use C3 linearization algorithm, and put in field __mro ?
         for _, base in ipairs(self.__bases) do
             local value = base[member]
             if value then return value end
@@ -136,4 +137,19 @@ function class.isclass(cls)
     return bases and type(bases) == "table"
 end
 
-return self_meta(class)
+if rawget(_G, "RUN_TESTS") then
+    local Foo = class "Foo"
+    {
+        __ctor = function(self, num)
+            print("Foo called with:", num)
+            self.bar = num
+        end;
+    }
+
+    f = Foo(42)
+    print(f.bar)
+    print(class.type(f))
+    print(class.type(Foo))
+end
+
+return class
