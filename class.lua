@@ -1,24 +1,36 @@
 local class = {}
 
-local function class_destroy_instance(instance)
-    local function recurse_dtor(class, instance)
-        local dtor = rawget(class, "__dtor")
-        if dtor then return dtor(instance) end
-
-        for _, p in ipairs(instance.__bases) do
-            class_destroy_instance(p, instance)
-        end
-    end
-    return recurse_dtor(instance.__class, instance)
-end
-
 local function self_meta(t)
     return setmetatable(t, t)
 end
 
 class.object = self_meta {}
 
-default_base = class.object
+class.object.__bases = {}
+
+local default_base = class.object
+
+local function class_init_instance(cls, instance, ...)
+    local ctor = rawget(cls, "__ctor")
+    if ctor then ctor(instance, ...) end
+    return instance
+end
+
+local function class_destroy_instance(instance)
+    -- FIX multi call to dtor in MI
+    local visited = {}
+    local function recurse_dtor(class, instance)
+        if visited[class] then return end
+        visited[class] = true
+        local dtor = rawget(class, "__dtor")
+        if dtor then dtor(instance) end
+
+        for _, base in ipairs(instance.__bases) do
+            class_destroy_instance(base, instance)
+        end
+    end
+    return recurse_dtor(instance.__class, instance)
+end
 
 local function class_create()
     local cls = { __bases = default_base }
@@ -30,20 +42,31 @@ local function class_create()
         instance.__gc = class_destroy_instance
         instance.__class = self
 
-        local ctor = rawget(self, "__ctor")
-        if ctor then ctor(self, ...) end
-        return self_meta(instance)
+        instance = self_meta(instance)
+
+        return class_init_instance(self, instance)
     end
+
+    function cls:__index(member)
+        for _, base in ipairs(self.__bases) do
+            local value = base[member]
+            if value then return value end
+        end
+        return nil
+    end
+
     return self_meta(cls)
 end
 
 --[[
--- Support the following:
+-- class:
+--      __bases
+--      __name
 --
---   A = class { [foo = 1 etc] }
---   A = class "A" { [foo = 1 etc] }
---   A = class (base1 [, base2 ...]) { [foo = 1 etc] }
---   A = class "A" (base1 [, base2 ...]) { [foo = 1 etc] }
+-- instance:
+--      __class
+--      __index
+--      __gc
 --]]
 function class:__call(...)
     local cls = class_create()
@@ -67,13 +90,6 @@ function class:__call(...)
         if type(maybe_class) == "table" and class.isclass(maybe_class) then
             cls.__bases = {...}
 
-            function cls:__index(member)
-                for _, base in ipairs(self.__bases) do
-                    local value = base[member]
-                    if value then return value end
-                end
-                return nil
-            end
             return class_content
         end
         return class_content(...)
@@ -93,8 +109,8 @@ end
 function class.isinstance(instance, class)
     local function recurse_isinstance(class_instance, class)
         if class_instance == class then return true end
-        for _, p in ipairs(class_instance.__bases) do
-            if recurse_isinstance(p, class) then return true end
+        for _, base in ipairs(class_instance.__bases) do
+            if recurse_isinstance(base, class) then return true end
         end
         return false
     end
@@ -104,13 +120,20 @@ end
 function class.type(obj)
     if type(obj) ~= "table" then return nil end
     local s = ""
-    if obj.__class then s = "instance of " end
-    if class.isclass(obj) then return s .. "class " .. obj.__name end
-    return nil
+    local cls = obj.__class
+    if cls then
+        s = "instance of "
+    elseif class.isclass(obj) then
+        cls = obj
+    else
+        return nil
+    end
+    return s .. "class " .. obj.__name
 end
 
 function class.isclass(cls)
-    return type(cls.__name) == "string"
+    local bases = rawget(cls, '__bases')
+    return bases and type(bases) == "table"
 end
 
 return self_meta(class)
