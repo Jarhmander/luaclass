@@ -83,6 +83,80 @@ local function class_try_get_classname(cls)
     return fallback()
 end
 
+local function class_c3_linearization(cls)
+    local bases = cls.__bases
+    local res = {cls}
+    local mergelist = {}
+
+    local function Baselist(bases)
+        return
+        {
+            list=bases;
+            head=1;
+            len=#bases;
+            empty=function(self)
+                return self.head > self.len
+            end;
+            in_tail=function(self, cls)
+                for i = self.head+1, self.len do
+                    if self.list[i] == cls then return true end
+                end
+                return false
+            end;
+            clear_cls=function(self, cls)
+                if self.list[self.head] == cls then
+                    self.head = self.head + 1
+                end
+            end;
+            get_head=function(self)
+                return self.list[self.head]
+            end
+        }
+    end
+
+    local function get_head()
+        local function find_head_in_tail(head)
+            for _, list in pairs(mergelist) do
+                if list:in_tail(head) then return true end
+            end
+            return false
+        end
+
+        for _, l in ipairs(mergelist) do
+            local head = l:get_head()
+            if not find_head_in_tail(head) then return head end
+        end
+        error "Broken inheritance graph"
+    end
+
+    local function remove_head(head)
+        local i = 1
+        repeat
+            local list = mergelist[i]
+            list:clear_cls(head)
+            if list:empty() then
+                table.remove(mergelist, i)
+            else
+                i = i+1
+            end
+        until mergelist[i] == nil
+    end
+
+    for _, base in ipairs(bases) do
+        table.insert(mergelist, Baselist(base.__mro))
+    end
+    table.insert(mergelist, Baselist(bases))
+
+    while next(mergelist) do
+        local head = get_head()
+        table.insert(res, head)
+        remove_head(head)
+    end
+
+    cls.__mro = res
+    return cls
+end
+
 class = self_meta {}
 
 local default_base = self_meta {}
@@ -100,7 +174,7 @@ class.object = default_base
 --  @brief Internal; make new class with some defined contents
 --]]
 local function class_create()
-    local cls = { __bases = default_base }
+    local cls = { __bases = {default_base} }
 
     function cls:__call(...)
         local instance = {}
@@ -193,8 +267,8 @@ function class:__call(...)
         if select("#", ...) > 0 or type(init) ~= "table" then
             error("syntax error")
         end
-        -- TODO
-        cls.__mro = {cls, default_base}
+
+        class_c3_linearization(cls)
         cls.__name = class.type(cls)
         for k, v in pairs(init) do cls[k] = v end
         return cls
