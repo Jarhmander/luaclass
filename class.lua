@@ -81,7 +81,7 @@ local function class_try_get_classname(cls)
         line = f:read()
     end
 
-    classname = line:match "([%a_][%w_]*)%s*=%s*class%f[%s%p]"
+    classname = line:match "([%a_][%w_]*)%s*=%s*class%f[%s%p\0]"
     return fallback()
 end
 
