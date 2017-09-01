@@ -83,15 +83,19 @@ local function class_try_get_classname(cls)
     return fallback()
 end
 
+--[[!
+--  @brief Initialize the field `__mro` with the linearization of the resolution order. Uses the C3
+--  linearization algorithm.
+--]]
 local function class_c3_linearization(cls)
     local bases = cls.__bases
     local res = {cls}
     local mergelist = {}
 
     local function Baselist(bases)
-        return
+        return self_meta
         {
-            list=bases;
+            __index=bases;
             head=1;
             len=#bases;
             empty=function(self)
@@ -99,23 +103,23 @@ local function class_c3_linearization(cls)
             end;
             in_tail=function(self, cls)
                 for i = self.head+1, self.len do
-                    if self.list[i] == cls then return true end
+                    if self[i] == cls then return true end
                 end
                 return false
             end;
             clear_cls=function(self, cls)
-                if self.list[self.head] == cls then
+                if self[self.head] == cls then
                     self.head = self.head + 1
                 end
             end;
             get_head=function(self)
-                return self.list[self.head]
+                return self[self.head]
             end
         }
     end
 
     local function get_head()
-        local function find_head_in_tail(head)
+        local function find_head_in_tails(head)
             for _, list in pairs(mergelist) do
                 if list:in_tail(head) then return true end
             end
@@ -124,7 +128,7 @@ local function class_c3_linearization(cls)
 
         for _, l in ipairs(mergelist) do
             local head = l:get_head()
-            if not find_head_in_tail(head) then return head end
+            if not find_head_in_tails(head) then return head end
         end
         error "Broken inheritance graph"
     end
@@ -195,21 +199,6 @@ local function class_create()
 
     return self_meta(cls)
 end
-
---[[
--- class' metatable:
---      __bases
---      __mro
---      __name
---      __classname
---
--- instance's metatable:
---      __class
---      __name
---      __index
---      __gc
---
---]]
 
 --[[!
 --  @brief Creation of a new class
