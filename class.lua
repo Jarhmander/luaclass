@@ -344,6 +344,20 @@ if rawget(_G, "RUN_TESTS") then
     local Bar = class {}
     print(Bar)
     print(Bar.__mro)
+
+    print "\nMRO test"
+    local A = class {}
+    local B = class {}
+    local C = class {}
+    local D = class {}
+    local E = class {}
+    local K1 = class (A,B,C) {}
+    local K2 = class (D,B,E) {}
+    local K3 = class (D,A) {}
+    local Z = class (K1,K2,K3) {}
+
+    -- Should print classes Z,K1,K2,K3,D,A,B,C,E,object
+    print (Z.__mro)
 end
 
 return class
