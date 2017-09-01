@@ -4,6 +4,8 @@ local yield = coro.yield
 
 local debug
 
+local default_base
+
 --[[!
 --  @brief Small helper: return (given) table with itself as metatable
 --]]
@@ -163,17 +165,6 @@ end
 
 class = self_meta {}
 
-local default_base = self_meta {}
-
-default_base.__bases = {}
-default_base.__mro = {default_base}
-default_base.dtor = class_destroy_instance
-
---[[!
---  @brief class `object`, the base class of all classes.
---]]
-class.object = default_base
-
 --[[!
 --  @brief Internal; make new class with some defined contents
 --]]
@@ -266,6 +257,9 @@ function class:__call(...)
     return class_name(...)
 end
 
+--[[!
+--  @brief Checks if the object is an instance of a class or subclass
+--]]
 function class.isinstance(instance, class)
     local cls = instance.__class
     for _, c in ipairs(cls.__mro) do
@@ -274,6 +268,10 @@ function class.isinstance(instance, class)
     return false
 end
 
+--[[!
+--  @brief Returns "class <name>" for a class, "instance of class <name>" for an instance, nil
+--  otherwise.
+--]]
 function class.type(obj)
     if type(obj) ~= "table" then return nil end
     local s = ""
@@ -288,13 +286,26 @@ function class.type(obj)
     return s .. "class " .. cls.__classname
 end
 
+--[[
+--  @brief Tells if the argument is a class
+--]]
 function class.isclass(cls)
     local bases = rawget(cls, '__bases')
     return bases and type(bases) == "table"
 end
 
+default_base = self_meta {}
+
+default_base.__bases = {}
+default_base.__mro = {default_base}
+default_base.dtor = class_destroy_instance
 default_base.__classname = "object"
 default_base.__name = class.type(default_base)
+
+--[[!
+--  @brief class `object`, the base class of all classes.
+--]]
+class.object = default_base
 
 --[[!
 --  @brief Resolve an attribute in an instance or class
