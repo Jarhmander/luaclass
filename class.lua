@@ -250,7 +250,14 @@ function class:__call(...)
 
         class_c3_linearization(cls)
         cls.__name = class.type(cls)
-        for k, v in pairs(init) do cls[k] = v end
+        cls.__metafields = {}
+        for k, v in pairs(init) do
+            if type(k) == "string" and k:match "^__%w+" then
+                cls.__metafields[k] = v
+            else
+                cls[k] = v
+            end
+        end
         return cls
     end
 
@@ -368,6 +375,15 @@ if rawget(_G, "RUN_TESTS") then
 
     -- Should print classes Z,K1,K2,K3,D,A,B,C,E,object
     print (Z.__mro)
+
+    local Bar = class
+    {
+        __add = function(a,b)
+            print "Add!"
+        end;
+    }
+
+    local _ = Bar() + Bar()
 end
 
 return class
