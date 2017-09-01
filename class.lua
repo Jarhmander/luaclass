@@ -286,12 +286,22 @@ function class.type(obj)
     return s .. "class " .. cls.__classname
 end
 
---[[
+--[[!
 --  @brief Tells if the argument is a class
 --]]
 function class.isclass(cls)
     local bases = rawget(cls, '__bases')
     return bases and type(bases) == "table"
+end
+
+--[[!
+--  @brief Abstract method implementation.
+--
+--  Useful for hinting which methods are abstract and should be implemented proper. Assign this
+--  function to fields meant to be methods that are to be implemented by derived class
+--]]
+function class.abstractmethod()
+    error("abstract method called", 2)
 end
 
 default_base = self_meta {}
