@@ -363,6 +363,15 @@ class.getattr = class_resolve_attr
 ----------------------------------------------------------------------------------------------------
 
 if rawget(_G, "RUN_TESTS") then
+    local function list_equal(a, b)
+        local i = 0
+        repeat
+            i = i + 1
+            if a[i] ~= b[i] then return false end
+        until a[i] == nil
+        return true
+    end
+
     local Foo = class "Foo"
     {
         __ctor = function(self, num)
@@ -373,17 +382,16 @@ if rawget(_G, "RUN_TESTS") then
 
     io.stdout:setvbuf "no"
     f = Foo(42)
-    print(f.bar)
-    print(class.type(f))
-    print(class.type(Foo))
-    print(f)
-    print(Foo)
-    print(class{})
-    local Bar = class {}
-    print(Bar)
-    print(Bar.__mro)
 
-    print "\nMRO test"
+    print(Foo)
+    print(f)
+    assert(f.bar == 42)
+    print(class.type(Foo))
+    print(class.type(f))
+
+    assert(class.type(Foo) == "class Foo")
+    assert(string.match(class.type(class{}), "^class _anon_%x+"))
+
     local A = class {}
     local B = class {}
     local C = class {}
@@ -394,8 +402,7 @@ if rawget(_G, "RUN_TESTS") then
     local K3 = class (D,A) {}
     local Z = class (K1,K2,K3) {}
 
-    -- Should print classes Z,K1,K2,K3,D,A,B,C,E,object
-    print (Z.__mro)
+    assert(list_equal(Z.__mro, {Z,K1,K2,K3,D,A,B,C,E,class.object}))
 
     local Bar = class
     {
