@@ -7,6 +7,23 @@ local debug
 local default_base
 
 --[[!
+--  List of metamethods, to be used for inherithed metamethods
+--]]
+local metalist =
+{
+    "__add", "__sub", "__mul", "__div",
+    "__mod", "__pow",
+    "__unm",
+    "__idiv",
+    "__band", "__bor", "__bxor", "__bnot",
+    "__shl", "__shr",
+    "__concat", "__len",
+    "__eq", "__lt", "__le",
+    "__newindex",
+    "__call"
+}
+
+--[[!
 --  @brief Small helper: return (given) table with itself as metatable
 --]]
 local function self_meta(t)
@@ -179,6 +196,14 @@ local function class_create()
         instance.__class = self
         instance.__name = class.type(instance)
 
+        for _, meta in ipairs(metalist) do
+            instance[meta] = function (...)
+                local m = class_resolve_attr(cls, meta)
+                if not m then error("unimplemented operator " .. meta, 2) end
+                return m(...)
+            end
+        end
+
         self_meta(instance)
 
         return class_init_instance(self, instance, ...)
@@ -250,13 +275,8 @@ function class:__call(...)
 
         class_c3_linearization(cls)
         cls.__name = class.type(cls)
-        cls.__metafields = {}
         for k, v in pairs(init) do
-            if type(k) == "string" and k:match "^__%w+" then
-                cls.__metafields[k] = v
-            else
-                cls[k] = v
-            end
+            cls[k] = v
         end
         return cls
     end
@@ -318,6 +338,7 @@ default_base.__mro = {default_base}
 default_base.dtor = class_destroy_instance
 default_base.__classname = "object"
 default_base.__name = class.type(default_base)
+default_base.__newindex = rawset
 
 --[[!
 --  @brief class `object`, the base class of all classes.
