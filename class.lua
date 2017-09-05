@@ -38,8 +38,8 @@ local function class_attributes(inst_or_class, attr)
         while mro[i] do
             local cls = mro[i]
             local ret = rawget(cls, attr)
-            i = i+1
             if ret then return ret, cls end
+            i = i+1
         end
         return nil
     end
