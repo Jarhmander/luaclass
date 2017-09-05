@@ -1,6 +1,4 @@
 local class
-local coro = coroutine
-local yield = coro.yield
 
 local debug
 
@@ -31,19 +29,30 @@ local function self_meta(t)
 end
 
 --[[!
---  @brief Implementation of `class.getattr`.
+--  @brief impementation of `class.attributes`.
 --]]
-local function class_resolve_attr(inst_or_class, attr)
-    local resolver = coroutine.wrap(function ()
-        local cls = class.isclass(inst_or_class) and inst_or_class or inst_or_class.__class
-        for _, base in ipairs(cls.__mro) do
-            local ret = rawget(base, attr)
-            if ret ~= nil then return ret, base end
+local function class_attributes(inst_or_class, attr)
+    local i = 0
+    local function it(mro)
+        i = i+1
+        while mro[i] do
+            local cls = mro[i]
+            local ret = rawget(cls, attr)
+            i = i+1
+            if ret then return ret, cls end
         end
         return nil
-    end)
-    local mem, cls = resolver()
-    if mem then return mem, cls, resolver else return nil end
+    end
+    local cls = class.isclass(inst_or_class) and inst_or_class or inst_or_class.__class
+    return it, cls.__mro
+end
+
+--[[!
+--  @brief Implementation of `class.getattr`.
+--]]
+local function class_getattr(inst_or_class, attr)
+    local it, mro = class_attributes(inst_or_class, attr)
+    return it(mro)
 end
 
 --[[!
@@ -59,10 +68,8 @@ end
 --  @brief Implementation of `dtor` and `__gc`: destroy instance
 --]]
 local function class_destroy_instance(instance)
-    local dtor, _, resolv = class_resolve_attr(instance, "__dtor")
-    while dtor do
+    for dtor in class_attributes(instance, "__dtor") do
         dtor(instance)
-        dtor = resolv()
     end
 end
 
@@ -198,7 +205,7 @@ local function class_create()
 
         for _, meta in ipairs(metalist) do
             instance[meta] = function (...)
-                local m = class_resolve_attr(cls, meta)
+                local m = class_getattr(cls, meta)
                 if not m then error("unimplemented operator " .. meta, 2) end
                 return m(...)
             end
@@ -210,7 +217,7 @@ local function class_create()
     end
 
     function cls:__index(member)
-        return class_resolve_attr(self, member)
+        return class_getattr(self, member)
     end
 
     return self_meta(cls)
@@ -351,14 +358,25 @@ class.object = default_base
 --  @param inst_or_class instance or class
 --  @param attr          attribute to find
 --
---  @return nil if the attribute is not found, otherwise the attribute, the class where it is found,
---          and a resolver. The resolver is simply a function that returns the next attributes and
---          corresponding class that are found each time it is called and return nil when there is
---          no more attribute to be found
+--  @return nil if the attribute is not found, otherwise the attribute and the class where it is
+--  found.
 --
---  @see class_resolve_attr
+--  @see class_getattr
 --]]
-class.getattr = class_resolve_attr
+class.getattr = class_getattr
+
+--[[!
+--  @brief Iterator; allow iterating through a class hierarchy, getting a single attribute
+--
+--  @param inst_or_class instance or class
+--  @param attr          attribute to find
+--
+--  @return iterator function and the __mro list, so ```for attr in class.attributes(cls)```
+--  iterates through the different attributes.
+--
+--  @see class_attributes
+--]]
+class.attributes = class_attributes
 
 ----------------------------------------------------------------------------------------------------
 
