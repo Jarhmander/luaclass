@@ -71,6 +71,7 @@ local function class_destroy_instance(instance)
     for dtor in class_attributes(instance, "__dtor") do
         dtor(instance)
     end
+    instance.__gc = nil
 end
 
 --[[!
