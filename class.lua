@@ -376,7 +376,6 @@ if rawget(_G, "RUN_TESTS") then
         end;
     }
 
-    io.stdout:setvbuf "no"
     f = Foo(42)
 
     print(Foo)
