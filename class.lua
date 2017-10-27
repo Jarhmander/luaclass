@@ -1,3 +1,6 @@
+--- Class module
+-- @module class
+
 local class
 
 local debug
@@ -28,9 +31,7 @@ local function self_meta(t)
     return setmetatable(t, t)
 end
 
---[[!
---  @brief impementation of `class.attributes`.
---]]
+--- Implementation of `class.attributes`.
 local function class_attributes(inst_or_class, attr)
     local i = 0
     local function it(mro)
@@ -47,26 +48,20 @@ local function class_attributes(inst_or_class, attr)
     return it, cls.__mro
 end
 
---[[!
---  @brief Implementation of `class.getattr`.
---]]
+--- Implementation of `class.getattr`.
 local function class_getattr(inst_or_class, attr)
     local it, mro = class_attributes(inst_or_class, attr)
     return it(mro)
 end
 
---[[!
---  @brief Internal; on a fresh new instance, calls the ctor if it exists.
---]]
+--- Internal; on a fresh new instance, calls the ctor if it exists.
 local function class_init_instance(cls, instance, ...)
     local ctor = rawget(cls, "__ctor")
     if ctor then ctor(instance, ...) end
     return instance
 end
 
---[[!
---  @brief Implementation of `dtor` and `__gc`: destroy instance
---]]
+--- Implementation of `dtor` and `__gc`: destroy instance.
 local function class_destroy_instance(instance)
     for dtor in class_attributes(instance, "__dtor") do
         dtor(instance)
@@ -74,9 +69,7 @@ local function class_destroy_instance(instance)
     instance.__gc = nil
 end
 
---[[!
---  @brief Internal; try to get the classname
---]]
+--- Internal; try to get the classname
 local function class_try_get_classname(cls)
     local classname
 
@@ -110,10 +103,8 @@ local function class_try_get_classname(cls)
     return fallback()
 end
 
---[[!
---  @brief Initialize the field `__mro` with the linearization of the resolution order. Uses the C3
+--- Initialize the field `__mro` with the linearization of the resolution order. Uses the C3
 --  linearization algorithm.
---]]
 local function class_c3_linearization(cls)
     local bases = cls.__bases
     local res = {cls}
@@ -190,9 +181,7 @@ end
 
 class = self_meta {}
 
---[[!
---  @brief Internal; make new class with some defined contents
---]]
+--- Internal; make new class with some defined contents.
 local function class_create()
     local cls = { __bases = {default_base} }
 
@@ -224,14 +213,15 @@ local function class_create()
     return self_meta(cls)
 end
 
---[[!
---  @brief Creation of a new class
+--- Creation of a new class.
 --
 --  This constructor can be used as follows:
+--  `
 --      [local] c = class {...}
 --      [local] c = class "Name" {...}
 --      [local] c = class (Base1 [, Base2 ...]) {...}
 --      [local] c = class "Name" (Base1 [, Base2 ...]) {...}
+--  `
 --
 --  More succintly, the syntax is as follows:
 --      class [classname] [(bases...)] <attrlist>
@@ -249,7 +239,6 @@ end
 --  `attrlist` is a possibly empty list of class attributes: regular functions, member functions and
 --  class members (variable shared accross all instances of a class, much like static member
 --  variables in C++)
---]]
 function class:__call(...)
     local cls = class_create()
 
@@ -292,9 +281,7 @@ function class:__call(...)
     return class_name(...)
 end
 
---[[!
---  @brief Checks if the object is an instance of a class or subclass
---]]
+--- Checks if the object is an instance of a class or subclass.
 function class.isinstance(instance, class)
     local cls = instance.__class
     for _, c in ipairs(cls.__mro) do
@@ -303,10 +290,8 @@ function class.isinstance(instance, class)
     return false
 end
 
---[[!
---  @brief Returns "class <name>" for a class, "instance of class <name>" for an instance, nil
+--- Returns "class <name>" for a class, "instance of class <name>" for an instance, nil
 --  otherwise.
---]]
 function class.type(obj)
     if type(obj) ~= "table" then return nil end
     local s = ""
@@ -321,20 +306,16 @@ function class.type(obj)
     return s .. "class " .. cls.__classname
 end
 
---[[!
---  @brief Tells if the argument is a class
---]]
+--- Tells if the argument is a class.
 function class.isclass(cls)
     local bases = rawget(cls, '__bases')
     return bases and type(bases) == "table"
 end
 
---[[!
---  @brief Abstract method implementation.
+--- Abstract method implementation.
 --
 --  Useful for hinting which methods are abstract and should be implemented proper. Assign this
 --  function to fields meant to be methods that are to be implemented by derived class
---]]
 function class.abstractmethod()
     error("abstract method called", 2)
 end
@@ -348,13 +329,10 @@ default_base.__classname = "object"
 default_base.__name = class.type(default_base)
 default_base.__newindex = rawset
 
---[[!
---  @brief class `object`, the base class of all classes.
---]]
+--- class `object`, the base class of all classes.
 class.object = default_base
 
---[[!
---  @brief Resolve an attribute in an instance or class
+--- Resolve an attribute in an instance or class.
 --
 --  @param inst_or_class instance or class
 --  @param attr          attribute to find
@@ -363,11 +341,11 @@ class.object = default_base
 --  found.
 --
 --  @see class_getattr
---]]
 class.getattr = class_getattr
 
---[[!
---  @brief Iterator; allow iterating through a class hierarchy, getting a single attribute
+--- Iterator; allow iterating through a class hierarchy, getting a single attribute.
+--
+--  @function attributes
 --
 --  @param inst_or_class instance or class
 --  @param attr          attribute to find
@@ -376,7 +354,6 @@ class.getattr = class_getattr
 --  iterates through the different attributes.
 --
 --  @see class_attributes
---]]
 class.attributes = class_attributes
 
 ----------------------------------------------------------------------------------------------------
